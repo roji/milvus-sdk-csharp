@@ -1,0 +1,40 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": ["Milvus.Client.csproj"],
+          "cwd": "../Milvus.Client"
+        }
+      ],
+      "dest": "api"
+    }
+  ],
+  "resource": [
+    { "files": "../milvussharp.png" }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "api/**.yml",
+          "api/index.md"
+        ]
+      },
+      {
+        "files": [ "*.md", "toc.yml" ]
+      }
+    ],
+    "output": "api",
+    "globalMetadata": {
+      "_appLogoPath": "milvussharp.png"
+    },
+    "template": [
+      "default",
+      "modern"
+    ],
+    "postProcessors": [],
+    "keepFileLink": false,
+    "disableGitFeatures": false
+  }
+}
