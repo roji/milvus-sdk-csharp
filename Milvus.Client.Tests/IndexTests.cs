@@ -17,7 +17,7 @@ public class IndexTests : IAsyncLifetime
     {
         await Collection.CreateIndexAsync(
             "float_vector", IndexType.Flat, SimilarityMetricType.L2, indexName: "float_vector_idx");
-        await Collection.WaitForIndexBuildAsync("float_vector");
+        await Collection.WaitForIndexBuildAsync("float_vector", "float_vector_idx");
     }
 
     [Fact]
@@ -46,10 +46,6 @@ public class IndexTests : IAsyncLifetime
     [InlineData(IndexType.IvfSq8, """{ "nlist": "8" }""")]
     [InlineData(IndexType.IvfPq, """{ "nlist": "8", "m": "4" }""")]
     [InlineData(IndexType.Hnsw, """{ "efConstruction": "8", "M": "4" }""")]
-    [InlineData(IndexType.Annoy, """{ "n_trees": "10" }""")]
-    [InlineData(IndexType.RhnswFlat, """{ "efConstruction": "8", "M": "4" }""")]
-    [InlineData(IndexType.RhnswPq, """{ "efConstruction": "8", "M": "4", "PQM": "4" }""")]
-    [InlineData(IndexType.RhnswSq, """{ "efConstruction": "8", "M": "4" }""")]
     [InlineData(IndexType.AutoIndex, """{ }""")]
     public async Task Index_types_float(IndexType indexType, string extraParamsString)
     {
@@ -89,10 +85,7 @@ public class IndexTests : IAsyncLifetime
 
     [Theory]
     [InlineData(SimilarityMetricType.Jaccard)]
-    [InlineData(SimilarityMetricType.Tanimoto)]
     [InlineData(SimilarityMetricType.Hamming)]
-    [InlineData(SimilarityMetricType.Superstructure)]
-    [InlineData(SimilarityMetricType.Substructure)]
     public async Task Similarity_metric_types_binary(SimilarityMetricType similarityMetricType)
     {
         await Collection.DropAsync();
@@ -126,10 +119,11 @@ public class IndexTests : IAsyncLifetime
         await Assert.ThrowsAsync<MilvusException>(() =>
             Collection.GetIndexBuildProgressAsync("float_vector"));
 
-        await Collection.CreateIndexAsync("float_vector", IndexType.Flat, SimilarityMetricType.L2);
-        await Collection.WaitForIndexBuildAsync("float_vector");
+        await Collection.CreateIndexAsync(
+            "float_vector", IndexType.Flat, SimilarityMetricType.L2, indexName: "float_vector_idx");
+        await Collection.WaitForIndexBuildAsync("float_vector", "float_vector_idx");
 
-        var progress = await Collection.GetIndexBuildProgressAsync("float_vector");
+        var progress = await Collection.GetIndexBuildProgressAsync("float_vector", "float_vector_idx");
         Assert.Equal(progress.TotalRows, progress.IndexedRows);
     }
 

@@ -28,13 +28,9 @@ public partial class MilvusCollection
         var request = new CreateIndexRequest
         {
             CollectionName = Name,
-            FieldName = fieldName
+            FieldName = fieldName,
+            IndexName = indexName ?? ""
         };
-
-        if (indexName is not null)
-        {
-            request.IndexName = indexName;
-        }
 
         if (milvusMetricType is not null)
         {
@@ -157,10 +153,27 @@ public partial class MilvusCollection
         {
             foreach (IndexDescription index in response.IndexDescriptions)
             {
+                IndexState state = index.State switch
+                {
+                    Grpc.IndexState.None => IndexState.None,
+                    Grpc.IndexState.Unissued => IndexState.Unissued,
+                    Grpc.IndexState.InProgress => IndexState.InProgress,
+                    Grpc.IndexState.Finished => IndexState.Finished,
+                    Grpc.IndexState.Failed => IndexState.Failed,
+                    Grpc.IndexState.Retry => IndexState.Retry,
+
+                    _ => throw new InvalidOperationException($"Unknown {nameof(Grpc.IndexState)}: {index.State}")
+                };
+
                 indexes.Add(new MilvusIndexInfo(
                     index.FieldName,
                     index.IndexName,
                     index.IndexID,
+                    state,
+                    index.IndexedRows,
+                    index.TotalRows,
+                    index.PendingIndexRows,
+                    index.IndexStateFailReason,
                     index.Params.ToDictionary(static p => p.Key, static p => p.Value)));
             }
         }
@@ -214,12 +227,12 @@ public partial class MilvusCollection
     {
         Verify.NotNullOrWhiteSpace(fieldName);
 
-        var request = new GetIndexBuildProgressRequest { CollectionName = Name, FieldName = fieldName };
-
-        if (indexName is not null)
+        var request = new GetIndexBuildProgressRequest
         {
-            request.IndexName = indexName;
-        }
+            CollectionName = Name,
+            FieldName = fieldName,
+            IndexName = indexName ?? ""
+        };
 
         GetIndexBuildProgressResponse response =
             await _client.InvokeAsync(_client.GrpcClient.GetIndexBuildProgressAsync, request, static r => r.Status,
@@ -254,9 +267,23 @@ public partial class MilvusCollection
         await Utils.Poll(
             async () =>
             {
-                IndexBuildProgress progress = await GetIndexBuildProgressAsync(fieldName, indexName, cancellationToken)
-                    .ConfigureAwait(false);
-                return (progress.IsComplete, progress);
+                IList<MilvusIndexInfo> indexInfos =
+                    await DescribeIndexAsync(fieldName, indexName, cancellationToken).ConfigureAwait(false);
+
+                MilvusIndexInfo indexInfo = indexInfos.FirstOrDefault(i => i.FieldName == fieldName) ?? indexInfos[0];
+
+                var progress = new IndexBuildProgress(indexInfo.IndexedRows, indexInfo.TotalRows);
+
+                return indexInfo.State switch
+                {
+                    IndexState.Finished => (true, progress),
+                    IndexState.InProgress => (false, progress),
+
+                    IndexState.Failed
+                        => throw new MilvusException("Index creation failed: " + indexInfo.IndexStateFailReason),
+
+                    _ => throw new MilvusException("Index isn't building, state is " + indexInfo.State)
+                };
             },
             indexName is null
                 ? $"Timeout when waiting for index on collection '{Name}' to build"
