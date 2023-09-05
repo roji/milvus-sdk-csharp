@@ -291,61 +291,6 @@ public class SearchQueryTests : IClassFixture<SearchQueryTests.QueryCollectionFi
         Assert.Collection(results.Limits, l => Assert.Equal(2, l));
     }
 
-    [Fact(Skip = "Milvus returns 'only support to travel back to 0s so far, but got 1s'")]
-    public async Task Query_with_time_travel()
-    {
-        // This tests inserts row, takes a timestamp, inserts another row, and then queries using the timestamp for
-        // time travel. Only the first row should be returned.
-
-        MilvusCollection collection = Client.GetCollection(nameof(Query_with_time_travel));
-        string collectionName = collection.Name;
-
-        await collection.DropAsync();
-        collection = await Client.CreateCollectionAsync(
-            collectionName,
-            new[]
-            {
-                FieldSchema.Create<long>("id", isPrimaryKey: true),
-                FieldSchema.CreateFloatVector("float_vector", 2)
-            });
-
-        await collection.CreateIndexAsync("float_vector", IndexType.Flat, SimilarityMetricType.L2);
-
-        await collection.InsertAsync(
-            new FieldData[]
-            {
-                FieldData.Create("id", new long[] { 1 }),
-                FieldData.CreateFloatVector("float_vector", new ReadOnlyMemory<float>[] { new[] { 1f, 2f } })
-            });
-
-        var timestamp = DateTime.UtcNow;
-
-        await collection.InsertAsync(
-            new FieldData[]
-            {
-                FieldData.Create("id", new long[] { 2 }),
-                FieldData.CreateFloatVector("float_vector", new ReadOnlyMemory<float>[] { new[] { 3f, 4f } })
-            });
-
-        await collection.LoadAsync();
-        await collection.WaitForCollectionLoadAsync(
-            waitingInterval: TimeSpan.FromMilliseconds(100), timeout: TimeSpan.FromMinutes(1));
-
-        // Query without time travel
-        var results = await collection.QueryAsync("id > 0");
-        var idData = (FieldData<long>)Assert.Single(results, d => d.FieldName == "id");
-        Assert.Collection(idData.Data,
-            id => Assert.Equal(1, id),
-            id => Assert.Equal(2, id));
-
-        // Query with time travel
-        results = await collection.QueryAsync(
-            "id > 0",
-            new() { TimeTravelTimestamp = MilvusTimestampUtils.FromDateTime(timestamp) });
-        idData = (FieldData<long>)Assert.Single(results, d => d.FieldName == "id");
-        Assert.Collection(idData.Data, id => Assert.Equal(1, id));
-    }
-
     [Fact]
     public Task Search_with_wrong_metric_type_throws()
         => Assert.ThrowsAsync<MilvusException>(() => Collection.SearchAsync(

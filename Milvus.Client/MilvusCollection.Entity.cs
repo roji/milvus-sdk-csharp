@@ -135,11 +135,6 @@ public partial class MilvusCollection
                 request.Dsl = parameters.Expression;
             }
 
-            if (parameters.TimeTravelTimestamp is not null)
-            {
-                request.TravelTimestamp = parameters.TimeTravelTimestamp.Value;
-            }
-
             if (parameters.Offset is not null)
             {
                 request.SearchParams.Add(new Grpc.KeyValuePair
@@ -347,11 +342,6 @@ public partial class MilvusCollection
 
         if (parameters is not null)
         {
-            if (parameters.TimeTravelTimestamp is not null)
-            {
-                request.TravelTimestamp = parameters.TimeTravelTimestamp.Value;
-            }
-
             if (parameters.PartitionNamesInternal?.Count > 0)
             {
                 request.PartitionNames.AddRange(parameters.PartitionNamesInternal);

@@ -41,15 +41,6 @@ public class SearchParameters
     public ulong? GuaranteeTimestamp { get; set; }
 
     /// <summary>
-    /// Specifies an optional time travel timestamp; the search will get results based on the data at that point in
-    /// time.
-    /// </summary>
-    /// <remarks>
-    /// For more details, see <see href="https://milvus.io/docs/v2.1.x/timetravel.md"/>.
-    /// </remarks>
-    public ulong? TimeTravelTimestamp { get; set; }
-
-    /// <summary>
     /// An optional boolean expression to filter scalar fields before performing the vector similarity search.
     /// </summary>
     public string? Expression { get; set; }
